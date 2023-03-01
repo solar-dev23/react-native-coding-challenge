@@ -1,98 +1,88 @@
 import {
-  ActionReducerMapBuilder,
   createAsyncThunk,
+  createEntityAdapter,
   createSlice,
   PayloadAction,
 } from '@reduxjs/toolkit';
+import {RootState} from '.';
+import {API_URL, API_KEY} from '../constants';
 import {IMovie} from '../types';
-import {fetchMovies} from '../utils/api';
+
+export const moviesAdapter = createEntityAdapter<IMovie>();
 
 const name = 'movies';
-const initialState = createInitialState();
-const reducers = createReducers();
-const extraActions = createExtraActions() as any;
 const slice = createSlice({
   name,
-  initialState,
-  reducers,
-  extraReducers: (builder: ActionReducerMapBuilder<MovieState>) =>
-    createExtraReducers(builder),
-});
-
-export interface MovieState {
-  list: Array<IMovie>;
-  error: any;
-  loading: boolean;
-}
-
-function createInitialState(): MovieState {
-  return {
-    list: [],
+  initialState: moviesAdapter.getInitialState({
     loading: false,
     error: null,
-  };
-}
-
-function createReducers() {
-  return {
-    clearState,
-    addFavorite,
-    removeFavorite,
-  };
-
-  function clearState(state: MovieState) {
-    state.list = [];
-    state.loading = false;
-    state.error = null;
-  }
-
-  function addFavorite(state: MovieState, action: PayloadAction<string>) {
-    state.list = state.list.map(movie =>
-      movie.id === action.payload ? {...movie, favorite: true} : movie,
-    );
-  }
-
-  function removeFavorite(state: MovieState, action: PayloadAction<string>) {
-    state.list = state.list.map(movie =>
-      movie.id === action.payload ? {...movie, favorite: false} : movie,
-    );
-  }
-}
-
-function createExtraActions() {
-  return {
-    getList,
-  };
-
-  function getList() {
-    return createAsyncThunk(`${name}/getList`, async ({search}: any) => {
-      const response = await fetchMovies(search);
-      return response;
-    });
-  }
-}
-
-function createExtraReducers(builder: ActionReducerMapBuilder<MovieState>) {
-  const {getList} = extraActions;
-
-  builder
-    // getList()
-    .addCase(getList.pending, (state: MovieState) => {
-      state.loading = true;
+  }),
+  reducers: {
+    clearState(state) {
+      moviesAdapter.removeAll(state);
+      state.loading = false;
       state.error = null;
-    })
-    .addCase(
-      getList.fulfilled,
-      (state: MovieState, action: PayloadAction<IMovie[]>) => {
-        state.loading = false;
-        state.list = action.payload;
-      },
-    )
-    .addCase(getList.rejected, (state: MovieState, action: any) => {
-      state.error = action.error;
+    },
+    addFavorite(state, action: PayloadAction<IMovie>) {
+      moviesAdapter.updateOne(state, {
+        id: action.payload.id,
+        changes: {...action.payload, favorite: true},
+      });
+      state.loading = false;
+      state.error = null;
+    },
+    removeFavorite(state, action: PayloadAction<IMovie>) {
+      moviesAdapter.updateOne(state, {
+        id: action.payload.id,
+        changes: {...action.payload, favorite: false},
+      });
+      state.loading = false;
+      state.error = null;
+    },
+  },
+  extraReducers: builder => {
+    builder.addCase(fetchMovies.pending, state => {
+      state.loading = true;
+    });
+    builder.addCase(fetchMovies.fulfilled, (state, action) => {
+      moviesAdapter.setAll(state, action.payload);
       state.loading = false;
     });
-}
+    builder.addCase(fetchMovies.rejected, state => {
+      state.loading = false;
+    });
+  },
+});
 
-export const movieActions = {...slice.actions, ...extraActions};
-export const movieReducer = slice.reducer;
+export const fetchMovies = createAsyncThunk(
+  `${name}/getMovies`,
+  async (search: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/?apikey=${API_KEY}&type=movie&y=2022&&s=${search}`,
+      );
+      const {Response, Search: data} = await response.json();
+      if (Response !== 'True') {
+        return [];
+      }
+
+      const result = data.map((movie: any) => ({
+        id: movie.imdbID,
+        poster: movie.Poster,
+        title: movie.Title,
+        year: movie.Year,
+        type: movie.Type,
+      }));
+
+      return result;
+    } catch (error) {
+      console.error(error);
+    }
+  },
+);
+
+export const {selectAll} = moviesAdapter.getSelectors(
+  (state: RootState) => state.movies,
+);
+export const {clearState, addFavorite, removeFavorite} = slice.actions;
+export default slice.reducer;

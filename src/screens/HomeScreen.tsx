@@ -14,29 +14,37 @@ import {IMovie} from '../types';
 import useDebounce from '../hooks/useDebounce';
 import MovieItem from '../components/layouts/MovieItem';
 import EmptyListMessage from '../components/layouts/EmptyListMessage';
-import {movieActions} from '../store';
+import {RootState} from '../store';
+import {
+  addFavorite,
+  clearState,
+  fetchMovies,
+  removeFavorite,
+  selectAll,
+} from '../store/movies.slice';
 
 function HomeScreen() {
   const dispatch = useDispatch();
-  const {list: movies, loading} = useSelector((state: any) => state.movies);
+  const {loading} = useSelector((state: RootState) => state.movies);
+  const movies = useSelector(selectAll);
   const [searchStr, setSearchStr] = useState<string>('');
   const debouncedSearchStr = useDebounce(searchStr, 500);
 
   useEffect(() => {
     if (!debouncedSearchStr) {
-      dispatch(movieActions.clearState());
+      dispatch(clearState());
       return;
     }
 
-    dispatch(movieActions.getList({search: debouncedSearchStr}));
+    dispatch(fetchMovies(debouncedSearchStr) as any);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedSearchStr]);
 
   const handleFavoriteUpdate = (movie: IMovie) => {
     if (movie.favorite) {
-      dispatch(movieActions.removeFavorite(movie.id));
+      dispatch(removeFavorite(movie));
     } else {
-      dispatch(movieActions.addFavorite(movie.id));
+      dispatch(addFavorite(movie));
     }
   };
 

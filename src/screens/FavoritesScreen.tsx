@@ -2,15 +2,15 @@ import React, {useEffect, useState} from 'react';
 import {useDispatch, useSelector} from 'react-redux';
 import {FlatList, SafeAreaView, StyleSheet, View} from 'react-native';
 
-import {movieActions} from '../store';
 import Header from '../components/layouts/Header';
 import EmptyListMessage from '../components/layouts/EmptyListMessage';
 import MovieItem from '../components/layouts/MovieItem';
 import {IMovie} from '../types';
+import {addFavorite, removeFavorite, selectAll} from '../store/movies.slice';
 
 function FavoritesScreen() {
   const dispatch = useDispatch();
-  const {list: movies} = useSelector((state: any) => state.movies);
+  const movies = useSelector(selectAll);
   const [favorites, setFavorites] = useState<IMovie[]>([]);
 
   useEffect(() => {
@@ -19,9 +19,9 @@ function FavoritesScreen() {
 
   const handleFavoriteUpdate = (movie: IMovie) => {
     if (movie.favorite) {
-      dispatch(movieActions.removeFavorite(movie.id));
+      dispatch(removeFavorite(movie));
     } else {
-      dispatch(movieActions.addFavorite(movie.id));
+      dispatch(addFavorite(movie));
     }
   };
 
